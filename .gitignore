@@ -1,0 +1,8 @@
+transfer-key
+transfer-key.pub
+.terraform
+terraform.tf*
+.terraform.lock*
+.serverless
+venv/
+.idea

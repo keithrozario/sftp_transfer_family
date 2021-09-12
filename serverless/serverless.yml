@@ -1,0 +1,70 @@
+service: serverless
+frameworkVersion: '2'
+
+provider:
+  name: aws
+  runtime: python3.8
+  lambdaHashingVersion: 20201221
+  stage: dev
+  region: ap-southeast-1
+  environment:
+    source_host: ${ssm:/sftp/source/hostname}
+    dest_host: ${ssm:/sftp/destination/hostname}
+    username: "sftpUser"
+    intermediate_bucket: ${ssm:/sftp/intermediate_bucket}
+  iam:
+    role:
+      statements:
+        - Effect: 'Allow'
+          Action:
+            - 'ssm:GetParameters'
+            - 'ssm:GetParameter'
+          Resource:
+            Fn::Join:
+              - ":"
+              - - arn:aws:ssm
+                - ${self:provider.region}
+                - Ref: AWS::AccountId
+                - parameter/sftp/sftp_password
+        - Effect: 'Allow'
+          Action:
+            - "kms:Decrypt"
+          Resource: 
+            Fn::Join:
+              - ":"
+              - - arn:aws:kms
+                - ${self:provider.region}
+                - Ref: AWS::AccountId
+                - "alias/aws/ssm"
+        - Effect: 'Allow'
+          Action:
+            - 's3:*Object*'
+          Resource:
+            Fn::Join:
+              - ""
+              - - "arn:aws:s3:::"
+                - ${ssm:/sftp/intermediate_bucket}
+                - "/*"
+        - Effect: 'Allow'
+          Action:
+            - 'kms:Decrypt'
+            - 'kms:GenerateDataKey'
+          Resource: ${ssm:/sftp/kms_arn}
+
+
+functions:
+  download:
+    handler: download.main
+    memorySize: 1024
+    timeout: 30
+    layers:
+      - arn:aws:lambda:ap-southeast-1:770693421928:layer:Klayers-python38-paramiko:1
+      - arn:aws:lambda:ap-southeast-1:770693421928:layer:Klayers-python38-aws-lambda-powertools:91
+  upload:
+    handler: upload.main
+    memorySize: 1024
+    timeout: 30
+    layers:
+      - arn:aws:lambda:ap-southeast-1:770693421928:layer:Klayers-python38-paramiko:1
+      - arn:aws:lambda:ap-southeast-1:770693421928:layer:Klayers-python38-aws-lambda-powertools:91
+
